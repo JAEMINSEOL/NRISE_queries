@@ -1,0 +1,64 @@
+with users as
+    (select u.*, t.source_type
+        , date (first_approval_time + interval '9' hour) as first_approval_date
+       , case when source_type is null then 'A' else 'B' end as user_group
+    from wippy_silver.user_activation_metrics u
+    left join (select user_id, source_type
+                    from wippy_dump.reward_grant
+                    where source_type ='MALE_NEW_USER_FIRST_JOIN_V1') t
+        on t.user_id = u.user_id
+    where gender=0
+        and date (first_approval_time + interval '9' hour) between date ('2025-08-05') and date('2025-11-25')
+        and (coalesce (ci_hash_user_seq , 1)=1 and coalesce (mobile_hash_user_seq , 1)=1)
+    )
+
+, user_jelly as(
+    select u.user_group, u.ci_hash, array_join(array_agg(cast(u.user_id as varchar)), ',') as user_ids, u.first_approval_date, u.date_ymd_kst
+         , sum(purchase_amount) as purchase_amount, sum(jelly_income) as jelly_income, sum(jelly_outcome) as jelly_outcome
+        , sum(num_matching) as num_matching
+    from (select *
+            from users
+            cross join (select distinct date_ymd_kst
+                        from wippy_bronze.billings_jellyuselog
+                        where date(date_ymd_kst) between date('2025-08-05') and date('2025-11-25'))
+            where date (first_approval_time + interval '9' hour) <= date(date_ymd_kst)) u
+    left join (select user_id, date_ymd_kst, sum(sales_amount) as purchase_amount, sum(jelly_quantity) as jelly_income
+               from wippy_silver.daily_billing
+               group by user_id, date_ymd_kst) ji on ji.user_id = u.user_id and date(ji.date_ymd_kst)=date(u.date_ymd_kst)
+    left join (select user_id, date_ymd_kst,sum(quantity) as jelly_outcome
+                    , count(case when item_id in (11,13) then user_id end) as num_matching
+               from wippy_bronze.billings_jellyuselog
+                where quantity < 0
+               group by user_id,date_ymd_kst) jo on jo.user_id = u.user_id and date(jo.date_ymd_kst)=date(u.date_ymd_kst)
+    where ci_hash is not null
+    group by u.user_group, u.ci_hash, u.date_ymd_kst, u.first_approval_date
+    order by user_ids
+    )
+, s1 as(
+    select user_group, num_matching_category_48_hours as num_matching_48_hours
+            , count(distinct ci_hash) as num_users
+        , abs(sum(purchase_amount)) as purchase_amount
+         , abs(sum(purchase_amount))*1.0/count(distinct ci_hash) as purchase_per_user
+         , sum(jelly_income) as jelly_income
+         , sum(jelly_income)*1.0/count(distinct ci_hash) as jelly_income_per_user
+         , abs(sum(jelly_outcome)) as jelly_outcome
+         , abs(sum(jelly_outcome)*1.0)/count(distinct ci_hash) as jelly_outcome_per_user
+         from (select case when num_matching>=3 then '>=3' else cast(num_matching as varchar) end as  num_matching_category
+                    , case when num_matching_48_hours>=3 then '>=3' else cast(num_matching_48_hours as varchar) end as  num_matching_category_48_hours
+                     , *
+                from (select user_group, ci_hash
+                            ,sum(purchase_amount) as purchase_amount, sum(jelly_income) as jelly_income, sum(jelly_outcome) as jelly_outcome
+                            , sum(coalesce(num_matching,0)) as num_matching
+                            , sum(case when date(date_ymd_kst) <= date(first_approval_date)+interval '2' day then coalesce(num_matching,0) end) as num_matching_48_hours
+                        from user_jelly
+                        group by 1,2))
+    group by user_group, rollup (num_matching_category_48_hours)
+    order by 1,2
+)
+
+select s1.*
+    , case when num_matching_48_hours is null then '전체' else num_matching_48_hours end as num_matching_48_hours
+    , case when num_matching_48_hours is null then null else num_users *100.0 / num_all_users end as user_ratio
+from s1
+join (select user_group, sum(num_users) as num_all_users from s1 where num_matching_48_hours is not null group by 1) s3 on s1.user_group = s3.user_group
+
