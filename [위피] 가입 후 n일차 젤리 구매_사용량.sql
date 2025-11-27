@@ -41,14 +41,20 @@ user_jelly as(
     --      , first_approval_date, date_ymd_kst
          , date_diff('day',first_approval_date,date(date_ymd_kst))+1 as nth_day
         , avg(coalesce(jelly_income,0)) as daily_jelly_income
-        , sum(coalesce(jelly_income,0)) as daily_jelly_income_all
+        , abs(avg(coalesce(purchase_amount,0))) as daily_arpu
         , abs(avg(coalesce(jelly_outcome,0))) as daily_jelly_outcome
+        , avg(nullif(jelly_income,0)) as daily_jelly_income_purchased
+        , abs(avg(nullif(jelly_outcome,0))) as daily_jelly_outcome_purchased
+        , abs(avg(nullif(purchase_amount,0))) as daily_arppu
     from user_jelly
     group by 1,2
 )
 select *
     , sum(daily_jelly_income) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_jelly_income
     , sum(daily_jelly_outcome) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_jelly_outcome
-    , sum(daily_jelly_income_all) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_jelly_income_all
+    , sum(daily_arpu) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_arpu
+    , sum(daily_jelly_income_purchased) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_jelly_income_purchased
+    , sum(daily_jelly_outcome_purchased) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_jelly_outcome_purchased
+    , sum(daily_arppu) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_arppu
 from s1
 order by nth_day, user_group
