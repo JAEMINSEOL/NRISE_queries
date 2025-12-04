@@ -15,7 +15,8 @@ with users as
     select user_id, date_ymd_kst, abs(quantity) as quantity, description
             , sum(abs(quantity)) over (partition by user_id order by registered_time) as cumul_jelly_use
     from wippy_bronze.billings_jellyuselog
-    where quantity<0)
+    where quantity<0
+    and date(date_ymd_kst) between date ('2025-08-04') and date('2025-12-25'))
 , user_daily_jelly as(
     select u.user_group, u.ci_hash,u.first_approval_date, u.first_approval_time, u.date_ymd_kst, u.nth_day
         , array_join(array_agg(distinct cast(u.user_id as varchar)), '..') as user_ids
@@ -39,21 +40,57 @@ with users as
     left join (select user_id, date_ymd_kst
                     , max(case when item_id=2088 then 1 else 0 end) as get_referral_reward
                 from wippy_bronze.billings_jellyuselog
+                where date(date_ymd_kst) between date ('2025-08-04') and date('2025-12-25')
                group by user_id, date_ymd_kst) ja on ja.user_id = u.user_id and date(ja.date_ymd_kst) = date(u.date_ymd_kst)
     left join (select distinct user_id, date_ymd_kst, sum(sales_amount) as purchase_amount
                 from wippy_silver.daily_billing
+                where date(date_ymd_kst) between date ('2025-08-04') and date('2025-12-25')
                 group by 1,2) p on p.user_id = u.user_id and date(p.date_ymd_kst) = date(u.date_ymd_kst)
     group by 1,2,3,4,5,6
     order by user_group, has_purchased
     )
-select user_group, ci_hash
-        , coalesce(max(has_purchased),0) as purchased_group
-        , max(get_referral_reward) as referral_rewarded_group
-        , sum(jelly_outcome) as used_jellies
-        , coalesce(sum(purchase_amount),0) as purchase_amount
-from user_daily_jelly
-where nth_day <=14
-group by 1,2
-order by ci_hash
 
+,user_nth as(
+select udj.user_group, udj.ci_hash, nth_day
+        -- , count(distinct udj.ci_hash) as num_users
+        , avg(jelly_outcome) as used_jellies
+        , avg(coalesce(purchase_amount,0)) as purchase_amount
+from user_daily_jelly udj
+left join (
+    select user_group, ci_hash
+            , coalesce(max(has_purchased),0) as purchased_group
+            , coalesce(max(get_referral_reward),0) as referral_rewarded_group
+    from user_daily_jelly
+    group by 1,2
+) u on u.ci_hash = udj.ci_hash
+where referral_rewarded_group = 0
+group by 1,2,3
+)
+select * from user_nth
+-- select user_group, nth_day, num_users
+--     , sum(purchase_amount) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_arpu
+--     , sum( used_jellies) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_jelly
+--     from user_nth
+
+-- , user_14d as(
+-- select user_group, ci_hash
+--         , coalesce(max(has_purchased),0) as purchased_group
+--         , coalesce(max(get_referral_reward),0) as referral_rewarded_group
+--         , sum(jelly_outcome) as used_jellies
+--         , coalesce(sum(purchase_amount),0) as purchase_amount
+-- from user_daily_jelly
+-- where nth_day <=14
+-- group by 1,2
+-- order by ci_hash
+-- )
+
+-- select * from user_14d
+
+-- select user_group, purchased_group, referral_rewarded_group
+--         , count(distinct ci_hash) as num_users
+--         , avg(used_jellies) as used_jellies
+--         , avg(purchase_amount) as purchase_amount
+-- from user_14d
+-- group by 1,2,3
+-- order by 1,2,3
 
