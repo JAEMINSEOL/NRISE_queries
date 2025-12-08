@@ -8,7 +8,7 @@ with users as
                     where source_type ='MALE_NEW_USER_FIRST_JOIN_V1') t
         on t.user_id = u.user_id
     where gender=0
-        and date (first_approval_time + interval '9' hour) between date ('2025-08-05') and date('2025-11-25')
+        and date (first_approval_time + interval '9' hour) between date ('2025-08-05') and date('2025-08-19')
         and (coalesce (ci_hash_user_seq , 1)=1 and coalesce (mobile_hash_user_seq , 1)=1)
     )
 
@@ -24,20 +24,15 @@ with users as
             from users
             cross join (select distinct date_ymd_kst
                         from wippy_bronze.billings_jellyuselog
-                        where date(date_ymd_kst) between date('2025-08-05') and date('2025-11-25'))
+                        where date(date_ymd_kst) between date('2025-08-05') and date('2025-12-25'))
             where date (first_approval_time + interval '9' hour) <= date(date_ymd_kst)) u
     left join (select user_id, registered_time, first_event_time, last_event_time
                 from wippy_silver.daily_active_user_info) au on au.user_id = u.user_id and date(au.first_event_time + interval '9' hour) = date(u.date_ymd_kst)
     left join (select user_id, date_ymd_kst, sum(sales_amount) as purchase_amount, sum(jelly_quantity) as jelly_income
                from wippy_silver.daily_billing
                group by user_id, date_ymd_kst) ji on ji.user_id = u.user_id and date(ji.date_ymd_kst)=date(u.date_ymd_kst)
-        left join (select user_id
-                    , max(case when item_id=2088 then 1 else 0 end) as get_referral_reward
-                from wippy_bronze.billings_jellyuselog
-                where date(date_ymd_kst) between date ('2025-08-04') and date('2025-11-25')
-               group by user_id) ja on ja.user_id = u.user_id
 
-    where ci_hash is not null and get_referral_reward=0
+    where ci_hash is not null
     group by 1,2,3,4
     -- order by user_ids
     )
@@ -67,5 +62,5 @@ select *
     , sum(daily_arppu) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_arppu
     , sum(num_purchase_users) over (partition by user_group order by nth_day rows between unbounded preceding and current row) as cumul_num_purchase_users
 from s1
-where nth_day<110
+where nth_day<=111
 order by user_group
