@@ -1,25 +1,36 @@
-with users as
+with users as(
+    select * from
     (select u.*, t.source_type
         , date (first_approval_time + interval '9' hour) as first_approval_date
-       , case when source_type is null then 'A' else 'B' end as user_group
+       , case when get_referral_reward = 0 then 'A' when get_referral_reward = 1 then 'B' end as user_group
     from wippy_silver.user_activation_metrics u
     left join (select user_id, source_type
                     from wippy_dump.reward_grant
                     where source_type ='MALE_NEW_USER_FIRST_JOIN_V1') t
         on t.user_id = u.user_id
+    left join (select user_id
+                    , max(case when item_id=2088 then 1 else 0 end) as get_referral_reward
+                from wippy_bronze.billings_jellyuselog
+                  where date(date_ymd_kst) between date('2025-08-05') and date('2025-12-25')
+               group by user_id) ja on ja.user_id = u.user_id
     where gender=0
         and date (first_approval_time + interval '9' hour) between date ('2025-08-05') and date('2025-08-19')
         and (coalesce (ci_hash_user_seq , 1)=1 and coalesce (mobile_hash_user_seq , 1)=1)
+        and source_type is null
+    )
+where user_group is not null
     )
 
 , user_jelly as(
     select *
         , sum(purchase_amount) over (partition by ci_hash order by date_ymd_kst rows between unbounded preceding and current row) as cumul_purchase_amount
+        , max(has_purchased) over (partition by ci_hash order by date_ymd_kst rows between unbounded preceding and current row) as cumul_purchased_users
         from(
     select u.user_group, u.ci_hash, u.date_ymd_kst,u.first_approval_date
         -- , array_join(array_agg(cast(u.user_id as varchar)), ',') as user_ids
         , count(distinct au.user_id) as user_activate
         , sum(purchase_amount) as purchase_amount, sum(jelly_income) as jelly_income
+        , max(case when ji.user_id is not null then 1 else 0 end) as has_purchased
     from (select *
             from users
             cross join (select distinct date_ymd_kst
@@ -44,6 +55,7 @@ with users as
         --  , first_approval_date
          , nth_day
          , count(distinct ci_hash) as num_users
+         , sum(cumul_purchased_users)*100.0 / count(distinct ci_hash) as purchase_rate
          , sum(cumul_purchase_amount) as cumul_purchase_amount
          , sum(case when user_activate > 0  then 1 end) as activated_users
         , avg(coalesce(jelly_income,0)) as daily_jelly_income
