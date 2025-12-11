@@ -18,7 +18,7 @@ with users as
 , jelly_use as(
     select user_group
             , first_approval_date
-            , date_diff('day',first_approval_date,date(date_ymd_kst))+1 as nth_day 
+            , date_diff('day',first_approval_date,date(date_ymd_kst))+1 as nth_day
              , coalesce(max(case when price>0 then 1 end) over (partition by ci_hash),0) as has_purchased
             , row_number() over (partition by ci_hash order by ju.registered_time) as action_num
             , case when jb.registered_time is not null then
@@ -41,7 +41,7 @@ with users as
 first_purchase_exp as (select * from jelly_use
                         where purchase_num = 1)
 ,summary as(
-select j.*
+select u.relative_score,j.*
         , case when j.description like '%한일%' then '한일'
                 when j.description like '%채추추%' or j.description like '%추추%' or j.description like '%추가 추천%' then '추추'
                 when j.description like '%프까%' or j.description like '%프로필 오픈%' then '프까'
@@ -49,7 +49,7 @@ select j.*
                 when j.description like '%프로필 평가%' or j.description like '%닮은꼴%' or j.description like '%리포트%' then '리포트'
                 when j.description like '%보이스톡%'  then '보이스톡'
                 when j.description like '%쪽지%' or j.description like '%DM%' or j.description like '%친추%' then '친구 신청'
-                when j.description like '%타임어택%' then '타임어택'
+                when j.description like '%타임어택%' then '친구 신청'
                 when j.description like '%블라인드%' then '블라인드'
                 when j.description like '%동놀%' or j.description like '%오늘 볼래%' then '동네약속'
         else null end as use_type
@@ -57,20 +57,21 @@ select j.*
     from jelly_use j
     left join first_purchase_exp p on p.ci_hash = j.ci_hash
     left join daily_active_users da on da.user_id = j.user_id and date(da.date_ymd_kst) = date(j.date_ymd_kst)
-where (j.action_num <= p.action_num + 10 or p.action_num is null)
+    join (select id, relative_score from wippy_dump.accounts_user) u on u.id = j.user_id
+where (j.action_num <= p.action_num + 20 or p.action_num is null)
 and j.nth_day <= 30
 
                                                          )
 
-select user_group, get_referral_reward, has_purchased, ci_hash, first_approval_date
-        , max(nth_day) as last_jellyuse_date
-        , coalesce(sum(price),0) as purchase_amount
-        , count(distinct active_date) as active_days
-from summary
-group by 1,2,3,4,5
+-- select user_group, get_referral_reward, has_purchased, ci_hash, first_approval_date
+--         , max(nth_day) as last_jellyuse_date
+--         , coalesce(sum(price),0) as purchase_amount
+--         , count(distinct active_date) as active_days
+-- from summary
+-- group by 1,2,3,4,5
 
--- select * from summary
--- where ci_hash = '0c79adb62a83dd580cbebe7edd4de446cb17ae6f759f854cef686b2ed68c91aa'
+select * from summary
+-- where ci_hash = '360ff04d665a73ecb22345ffbc78a5e34f258da79d762100379756f99248b0b3'
 -- group by 1
 
 -- group by 2,3,4
