@@ -63,14 +63,14 @@ and j.nth_day <= 30
 
                                                          )
 
--- select user_group, get_referral_reward, has_purchased, ci_hash, first_approval_date
---         , max(nth_day) as last_jellyuse_date
---         , coalesce(sum(price),0) as purchase_amount
---         , count(distinct active_date) as active_days
--- from summary
--- group by 1,2,3,4,5
+select user_group, get_referral_reward, has_purchased, ci_hash, first_approval_date
+        , max(nth_day) as last_jellyuse_date
+        , coalesce(sum(price),0) as purchase_amount
+        , count(distinct active_date) as active_days
+from summary
+group by 1,2,3,4,5
 
-select * from summary
+-- select * from summary
 -- where ci_hash = '360ff04d665a73ecb22345ffbc78a5e34f258da79d762100379756f99248b0b3'
 -- group by 1
 
