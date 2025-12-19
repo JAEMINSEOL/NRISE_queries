@@ -1,3 +1,9 @@
+create table da_adhoc.exp_wp_4744 as
+select distinct user_id, exp_props['WP-4744'] as exp_var
+from wippy_bronze.wippy_ubl
+where date(date_ymd_kst)  > date('2025-11-27')
+     
+
 select *
      , num_profile_opened_users_today *100.0 / num_today_rcmd_users as rate_profile_today
       , num_chat_requested_users_today *100.0 / num_today_rcmd_users as rate_request_today
