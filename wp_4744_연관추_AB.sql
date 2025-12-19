@@ -5,8 +5,8 @@ select *
         , num_profile_opened_users_related *100.0 / num_profile_opened_users_today as rate_profile_related_per_today
 from (select gender
            , exp_var
-           , date_ymd_kst
-           , user2_relative_score
+        --   , date_ymd_kst
+           , floor(user2_relative_score/10)+1 as user2_relative_score
            , count(user_id)                                                                             as num_users
            , count(case when channel_id = 21 then user_id end)                                          as num_today_rcmd_users
            , count(case when rcmd_type = 2060 then user_id end)                                         as num_related_rcmd_users
