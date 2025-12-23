@@ -1,0 +1,33 @@
+select
+        -- cast(rc.hour_kst as int)+cast(date_diff('day',date('2025-12-23'),date(rc.date_ymd_kst)) as int)*24 as hour_kst,
+        mod(rc.user1_id,2) as user1_group
+        , substr(cast(u1.location as varchar),1,3) as user1_location
+        -- , u1.location as user1_location
+        , count(registered_time) as all_rcmd_cnt
+        , count(case when rr.friend_request_time is not null then registered_time end) as all_rcmd_friend_request_cnt
+        , count(case when rr.friend_request_time is not null then registered_time end)*100.0 / count(case when rc.rcmd_type >=0 then registered_time end) as all_rcmd_friend_request_ratio
+        , count(case when rc.rcmd_type = 80 then registered_time end) as og_booster_cnt
+        , count(case when rc.rcmd_type = 80 and like_time is not null then registered_time end) as og_booster_like_cnt
+        , count(case when rc.rcmd_type = 80 and rr.friend_request_time is not null then registered_time end) as og_booster_friend_request_cnt
+        , count(case when rc.rcmd_type = 80 and rr.other_accepted_time is not null then registered_time end) as og_booster_match_cnt
+        , count(case when rc.rcmd_type = 80 and like_time is not null then registered_time end)*100.0 / count(case when rc.rcmd_type = 80 then registered_time end) as og_booster_like_ratio
+        , count(case when rc.rcmd_type = 80 and rr.friend_request_time is not null then registered_time end)*100.0 / count(case when rc.rcmd_type = 80 then registered_time end) as og_booster_friend_request_ratio
+        , count(case when rc.rcmd_type = 80 and rr.other_accepted_time is not null then registered_time end)*100.0 / count(case when rc.rcmd_type = 80 then registered_time end) as og_booster_match_ratio
+        , avg(case when rc.rcmd_type=80 then min_distance end)/1000 as og_booster_distance
+        , avg(case when rc.rcmd_type=80 and like_time is not null then min_distance end)/1000 as og_booster_like_distance
+        , avg(case when rc.rcmd_type=80 and rr.friend_request_time is not null then min_distance end)/1000 as og_booster_friend_request_distance
+from (select * 
+        from wippy_silver.hourly_merged_rcmd_log 
+        where date_ymd_kst = '2025-12-23' and cast(hour_kst as int)>11) rc
+left join (select user1_id, user2_id, friend_request_time, other_accepted_time, hour_kst,date_ymd_kst, rcmd_type 
+        from wippy_silver.hourly_merged_rcmd_log
+        where date_ymd_kst = '2025-12-23') rr
+        on rc.user1_id = rr.user1_id and rc.user2_id=rr.user2_id and rc.hour_kst=rr.hour_kst and rr.date_ymd_kst=rr.date_ymd_kst and rc.rcmd_type<>rr.rcmd_type
+join (select id, location 
+        from wippy_dump.accounts_user 
+        where location is not null) u1 
+        on u1.id = rc.user1_id
+where (user1_gender=0 and user2_gender=1)
+group by 1,2
+having count(registered_time)>200
+order by 1,2
