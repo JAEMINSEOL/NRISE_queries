@@ -3,6 +3,7 @@ select
         mod(rc.user1_id,2) as user1_group
         , substr(cast(u1.location as varchar),1,3) as user1_location
         -- , u1.location as user1_location
+        , count(distinct rc.user1_id) as user_cnt
         , count(registered_time) as all_rcmd_cnt
         , count(case when rr.friend_request_time is not null then registered_time end) as all_rcmd_friend_request_cnt
         , count(case when rr.friend_request_time is not null then registered_time end)*100.0 / count(case when rc.rcmd_type >=0 then registered_time end) as all_rcmd_friend_request_ratio
@@ -29,5 +30,5 @@ join (select id, location
         on u1.id = rc.user1_id
 where (user1_gender=0 and user2_gender=1)
 group by 1,2
-having count(registered_time)>200
+having count(distinct rc.user1_id) > 5
 order by 1,2
