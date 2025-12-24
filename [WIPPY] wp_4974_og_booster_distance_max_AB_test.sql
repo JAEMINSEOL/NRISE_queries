@@ -6,6 +6,7 @@ select
         , count(distinct rc.user1_id) as user_cnt
         , count(registered_time) as all_rcmd_cnt
         , count(case when rr.friend_request_time is not null then registered_time end) as all_rcmd_friend_request_cnt
+        , count(case when rr.other_accepted_time is not null then registered_time end) as all_rcmd_match_cnt
         , count(case when rr.friend_request_time is not null then registered_time end)*100.0 / count(case when rc.rcmd_type >=0 then registered_time end) as all_rcmd_friend_request_ratio
         , count(case when rc.rcmd_type = 80 then registered_time end) as og_booster_cnt
         , count(case when rc.rcmd_type = 80 and like_time is not null then registered_time end) as og_booster_like_cnt
@@ -19,10 +20,10 @@ select
         , avg(case when rc.rcmd_type=80 and rr.friend_request_time is not null then min_distance end)/1000 as og_booster_friend_request_distance
 from (select * 
         from wippy_silver.hourly_merged_rcmd_log 
-        where date_ymd_kst = '2025-12-23' and cast(hour_kst as int)>11) rc
+        where (date_ymd_kst = '2025-12-23' and cast(hour_kst as int)>11) or (date_ymd_kst = '2025-12-24')) rc
 left join (select user1_id, user2_id, friend_request_time, other_accepted_time, hour_kst,date_ymd_kst, rcmd_type 
         from wippy_silver.hourly_merged_rcmd_log
-        where date_ymd_kst = '2025-12-23') rr
+        where date_ymd_kst >= '2025-12-23') rr
         on rc.user1_id = rr.user1_id and rc.user2_id=rr.user2_id and rc.hour_kst=rr.hour_kst and rr.date_ymd_kst=rr.date_ymd_kst and rc.rcmd_type<>rr.rcmd_type
 join (select id, location 
         from wippy_dump.accounts_user 
