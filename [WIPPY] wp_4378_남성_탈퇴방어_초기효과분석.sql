@@ -1,7 +1,7 @@
--- select date_ymd_kst, user_type, response
---         , count(distinct user_id) as users
---         from(
-select * from(
+
+select * 
+    , sum(purchased_after_continue) as purchased_amount_after_continue
+from(
 select coalesce(date(c.server_access_time),date(d.server_access_time)) as date_ymd_kst, v.user_id, json_extract_scalar(v.extra, '$.reward_type') as user_type
         , case when c.server_access_time is not null then 'continue' when d.server_access_time is not null then 'delete' end as response
         ,c.server_access_time as continue_server_access_time
@@ -51,12 +51,12 @@ left join (select * from(
     select user_id, registered_time, price
             , row_number() over (partition by user_id order by registered_time desc) as rn
     from wippy_bronze.billing_log
-    where registered_month = '2025-12'
-    ) where rn=1
+    where registered_month >= '2025-12'
+    ) 
+--                     where rn=1
     ) j on j.user_id = v.user_id
 -- where c.server_access_time is null
 order by 3,4
 )
 where response is not null
--- group by 1,2,3
--- order by 1,2,3
+group by 1,2,3,4,5,6,7
