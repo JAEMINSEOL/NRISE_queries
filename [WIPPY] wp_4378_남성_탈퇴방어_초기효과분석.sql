@@ -7,7 +7,9 @@ select coalesce(date(c.server_access_time),date(d.server_access_time)) as date_y
         ,c.server_access_time as continue_server_access_time
         ,d.server_access_time as delete_server_access_time
         ,r.server_access_time as last_server_access_time
-        , date_diff('hour',coalesce(c.server_access_time,d.server_access_time),coalesce(d.server_access_time,cast('2030-12-29 8:06:17' as timestamp))) as retention_max
+        , least(date_diff('hour',coalesce(c.server_access_time,d.server_access_time),coalesce(d.server_access_time,cast('2030-12-29 8:06:17' as timestamp))),1000) as retention_max
+        , j.registered_time as jelly_purchase_time
+        , case when date_diff('second',c.server_access_time,j.registered_time) > 0 then price else 0 end as purchased_after_continue
 from(select * from (SELECT user_id, date_ymd_kst, navigations, event_type, extra
                     ,row_number() over (partition by user_id order by server_access_time) as rn
                     FROM wippy_bronze.wippy_ubl
@@ -45,7 +47,13 @@ join(select * from(
     where date_ymd_kst >= '2025-12-18'
     ) where rn=1
     ) r on r.user_id = v.user_id
-
+left join (select * from(
+    select user_id, registered_time, price
+            , row_number() over (partition by user_id order by registered_time desc) as rn
+    from wippy_bronze.billing_log
+    where registered_month = '2025-12'
+    ) where rn=1
+    ) j on j.user_id = v.user_id
 -- where c.server_access_time is null
 order by 3,4
 )
