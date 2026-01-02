@@ -18,7 +18,7 @@ SELECT n.*
         , u.location
         , vc.issue_cnt
         , check_coupon_box
-        , vc.redeem_cnt
+        , coalesce(vc.redeem_cnt,0) as redeem_cnt
         , vu.counts as used_vana_coupons
         , d1_retention, d2_4_retention, d5_7_retention, w1_retention
         , rcmd.*
@@ -56,20 +56,20 @@ left join (select n.user_id
 left join (select user1_id
                 , r1.regi as rcmd_regi, imp as rcmd_imp, resp as rcmd_resp, req as rcmd_req, r1.mat as rcmd_match, r2.regi as rcmd_other_regi,  r2.mat as rcmd_other_match
                 from (select r1.user1_id
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 24 then r1.user2_id end) as regi
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 24 then r1.user2_id end) as imp
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.like_time) <= 24 or date_diff('hour',n.first_approval_time,r1.dislike_time) <= 24 then r1.user2_id end) as resp
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) <= 24 then r1.user2_id end) as req
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 24 then r1.user2_id end) as mat
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 72 then r1.user2_id end) as regi
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 72 then r1.user2_id end) as imp
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.like_time) <= 72 or date_diff('hour',n.first_approval_time,r1.dislike_time) <= 72 then r1.user2_id end) as resp
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) <= 72 then r1.user2_id end) as req
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 72 then r1.user2_id end) as mat
                         from rcmd_partition r1
                         join user_info n on n.user_id = r1.user1_id
                         group by 1) r1
                 left join (select r1.user2_id
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 24 then r1.user1_id end) as regi
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 72 then r1.user1_id end) as regi
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 24 then r1.user2_id end) as imp
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.like_time) <= 24 or date_diff('hour',n.first_approval_time,r1.dislike_time) <= 24 then r1.user2_id end) as resp
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) <= 24 then r1.user2_id end) as req
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 24 then r1.user1_id end) as mat
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 72 then r1.user1_id end) as mat
                         from rcmd_partition r1
                         join user_info n on n.user_id = r1.user2_id
                         group by 1) r2 on r1.user1_id = r2.user2_id
