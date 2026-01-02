@@ -65,11 +65,11 @@ left join (select user1_id
                         join user_info n on n.user_id = r1.user1_id
                         group by 1) r1
                 left join (select r1.user2_id
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 24 then r1.user2_id end) as regi
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 24 then r1.user1_id end) as regi
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 24 then r1.user2_id end) as imp
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.like_time) <= 24 or date_diff('hour',n.first_approval_time,r1.dislike_time) <= 24 then r1.user2_id end) as resp
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) <= 24 then r1.user2_id end) as req
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 24 then r1.user2_id end) as mat
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 24 then r1.user1_id end) as mat
                         from rcmd_partition r1
                         join user_info n on n.user_id = r1.user2_id
                         group by 1) r2 on r1.user1_id = r2.user2_id
