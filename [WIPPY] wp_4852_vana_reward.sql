@@ -1,5 +1,5 @@
 with rcmd_partition as
-    (select user1_id, user2_id, registered_time,profile_open_time,like_time,dislike_time,friend_request_time,other_accepted_time,joined_time
+    (select user1_id, user2_id, registered_time,profile_open_time,impression_time,like_time,dislike_time,friend_request_time,other_accepted_time,joined_time
      from wippy_silver.hourly_merged_rcmd_log
     where date_ymd_kst between '2025-12-15' and '2026-01-04'
     ),
