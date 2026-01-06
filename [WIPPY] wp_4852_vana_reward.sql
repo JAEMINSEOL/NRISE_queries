@@ -57,7 +57,7 @@ left join (select n.user_id
             join user_info n on ub.user_id = n.user_id
             group by 1) ub on ub.user_id = n.user_id
 left join (select user1_id
-                , r1.regi as rcmd_regi, imp as rcmd_imp, resp as rcmd_resp, req as rcmd_req, r1.mat as rcmd_match, r2.regi as rcmd_other_regi,  r2.prof as rcmd_other_profile, r2.req as rcmd_other_request, r2.mat as rcmd_other_match,  r1.jo+r2.jo as rcmd_join,  r1.jo10+r2.jo10 as rcmd_join_10d,  r1.jo14+r2.jo14 as rcmd_join_14d
+                , r1.regi as rcmd_regi, imp as rcmd_imp, resp as rcmd_resp, r1.req as rcmd_req, r1.mat as rcmd_match, r2.regi as rcmd_other_regi,  r2.prof as rcmd_other_profile, r2.req as rcmd_other_request, r2.mat as rcmd_other_match,  r1.jo+r2.jo as rcmd_join,  r1.jo10+r2.jo10 as rcmd_join_10d,  r1.jo14+r2.jo14 as rcmd_join_14d
                 from (select r1.user1_id
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 192 then r1.user2_id end) as regi
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 192 then r1.user2_id end) as imp
