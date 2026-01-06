@@ -38,7 +38,7 @@ left join (SELECT user_id, count(issued_at_kst) as issue_cnt, count(redeemed_at_
          status,
          item_id
   FROM wippy_dump.mobile_coupon_box
-  WHERE created_at >= cast (concat('{{start_date}}',' 00:00:00') as timestamp) - INTERVAL '9' HOUR
+  WHERE created_at >= cast (concat('2025-12-15',' 00:00:00') as timestamp) - INTERVAL '9' HOUR
                                                          )
                                                          group by 1
             ) vc on vc.user_id = n.user_id
