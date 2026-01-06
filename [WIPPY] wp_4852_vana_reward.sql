@@ -1,5 +1,5 @@
 with rcmd_partition as
-    (select user1_id, user2_id, registered_time,impression_time,like_time,dislike_time,friend_request_time,other_accepted_time,joined_time
+    (select user1_id, user2_id, registered_time,profile_open_time,like_time,dislike_time,friend_request_time,other_accepted_time,joined_time
      from wippy_silver.hourly_merged_rcmd_log
     where date_ymd_kst between '2025-12-15' and '2026-01-04'
     ),
@@ -38,7 +38,7 @@ left join (SELECT user_id, count(issued_at_kst) as issue_cnt, count(redeemed_at_
          status,
          item_id
   FROM wippy_dump.mobile_coupon_box
-  WHERE created_at >= TIMESTAMP '2025-12-22 00:00:00' - INTERVAL '9' HOUR
+  WHERE created_at >= cast (concat('{{start_date}}',' 00:00:00') as timestamp) - INTERVAL '9' HOUR
                                                          )
                                                          group by 1
             ) vc on vc.user_id = n.user_id
@@ -57,7 +57,7 @@ left join (select n.user_id
             join user_info n on ub.user_id = n.user_id
             group by 1) ub on ub.user_id = n.user_id
 left join (select user1_id
-                , r1.regi as rcmd_regi, imp as rcmd_imp, resp as rcmd_resp, req as rcmd_req, r1.mat as rcmd_match, r2.regi as rcmd_other_regi,  r2.mat as rcmd_other_match,  r1.jo+r2.jo as rcmd_join,  r1.jo10+r2.jo10 as rcmd_join_10d,  r1.jo14+r2.jo14 as rcmd_join_14d
+                , r1.regi as rcmd_regi, imp as rcmd_imp, resp as rcmd_resp, req as rcmd_req, r1.mat as rcmd_match, r2.regi as rcmd_other_regi,  r2.prof as rcmd_other_profile, r2.req as rcmd_other_request, r2.mat as rcmd_other_match,  r1.jo+r2.jo as rcmd_join,  r1.jo10+r2.jo10 as rcmd_join_10d,  r1.jo14+r2.jo14 as rcmd_join_14d
                 from (select r1.user1_id
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 192 then r1.user2_id end) as regi
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 192 then r1.user2_id end) as imp
@@ -74,7 +74,8 @@ left join (select user1_id
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 192 then r1.user1_id end) as regi
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 192 then r1.user2_id end) as imp
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.like_time) <= 192 or date_diff('hour',n.first_approval_time,r1.dislike_time) <= 192 then r1.user2_id end) as resp
---                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) <= 192 then r1.user2_id end) as req
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.profile_open_time) <= 192 then r1.user1_id end) as prof
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) <= 192 then r1.user1_id end) as req
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 192 then r1.user1_id end) as mat
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= 192 then r1.user1_id end) as jo
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= (24*10) then r1.user1_id end) as jo10
