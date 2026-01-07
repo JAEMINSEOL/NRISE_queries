@@ -1,7 +1,7 @@
 with rcmd_partition as
-    (select user1_id, user2_id, registered_time,profile_open_time,impression_time,like_time,dislike_time,friend_request_time,other_accepted_time,joined_time
+    (select user1_id, user2_id, registered_time,profile_open_time,impression_time,like_time,dislike_time,friend_request_time,other_accepted_time,joined_time,rcmd_type,channel_id
      from wippy_silver.hourly_merged_rcmd_log
-    where date_ymd_kst between '2025-12-15' and '2026-01-04'
+    where date_ymd_kst between '2025-12-15' and '2026-01-05'
     ),
     user_info as (select user_id, gender
         , first_approval_time
@@ -52,7 +52,7 @@ left join (select n.user_id
             from (select user_id, date(date_ymd_kst) as date_ymd_kst
                     , max (case when (contains (navigations, 'mobile_coupon')) then 1 else 0 end) as check_coupon_box
                     from wippy_bronze.wippy_ubl
-                    where date_ymd_kst between '2025-12-15' and '2026-01-04'
+                    where date_ymd_kst between '2025-12-15' and '2026-01-05'
                     group by 1,2) ub
             join user_info n on ub.user_id = n.user_id
             group by 1) ub on ub.user_id = n.user_id
@@ -74,7 +74,7 @@ left join (select user1_id
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 192 then r1.user1_id end) as regi
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 192 then r1.user2_id end) as imp
 --                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.like_time) <= 192 or date_diff('hour',n.first_approval_time,r1.dislike_time) <= 192 then r1.user2_id end) as resp
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.profile_open_time) <= 192 then r1.user1_id end) as prof
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.profile_open_time) <= 192 and (r1.rcmd_type not in (4,50,80,101,102,103,105) and r1.channel_id<>21 ) then r1.user1_id end) as prof
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) <= 192 then r1.user1_id end) as req
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 192 then r1.user1_id end) as mat
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= 192 then r1.user1_id end) as jo
