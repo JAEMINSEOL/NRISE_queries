@@ -57,7 +57,9 @@ left join (select n.user_id
             join user_info n on ub.user_id = n.user_id
             group by 1) ub on ub.user_id = n.user_id
 left join (select user1_id
-                , r1.regi as rcmd_regi, imp as rcmd_imp, resp as rcmd_resp, r1.req as rcmd_req, r1.mat as rcmd_match, r2.regi as rcmd_other_regi,  r2.prof as rcmd_other_profile, r2.req as rcmd_other_request, r2.mat as rcmd_other_match,  r1.jo+r2.jo as rcmd_join,  r1.jo10+r2.jo10 as rcmd_join_10d,  r1.jo14+r2.jo14 as rcmd_join_14d
+                , r1.regi as rcmd_regi, imp as rcmd_imp, resp as rcmd_resp, r1.req as rcmd_req, r1.mat as rcmd_match
+          , r2.regi as rcmd_other_regi,  r2.prof as rcmd_other_profile, r2.req as rcmd_other_request, r2.mat as rcmd_other_match
+          ,  r1.jo+r2.jo as rcmd_join,  r1.jo10 as rcmd_join_10d,  r1.jo14+r2.jo14 as rcmd_join_14d,  r2.prof14 as rcmd_other_profile_14d,  r2.req14 as rcmd_other_request_14d
                 from (select r1.user1_id
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.registered_time) <= 192 then r1.user2_id end) as regi
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.impression_time) <= 192 then r1.user2_id end) as imp
@@ -66,7 +68,7 @@ left join (select user1_id
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 192 then r1.user2_id end) as mat
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= 192 then r1.user2_id end) as jo
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= (24*10) then r1.user2_id end) as jo10
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= (24*14) then r1.user2_id end) as jo14
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) between (24*8) and (24*15) then r1.user2_id end) as jo14
                         from rcmd_partition r1
                         join user_info n on n.user_id = r1.user1_id
                         group by 1) r1
@@ -78,8 +80,9 @@ left join (select user1_id
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) <= 192 then r1.user1_id end) as req
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.other_accepted_time) <= 192 then r1.user1_id end) as mat
                         , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= 192 then r1.user1_id end) as jo
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= (24*10) then r1.user1_id end) as jo10
-                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) <= (24*14) then r1.user1_id end) as jo14
+                        , count (distinct case when (date_diff('hour',n.first_approval_time,r1.profile_open_time) between (24*8) and (24*15)) and (r1.rcmd_type not in (4,50,80,101,102,103,105) and r1.channel_id<>21 )then r1.user1_id end) as prof14
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.friend_request_time) between (24*8) and (24*15) then r1.user1_id end) as req14
+                        , count (distinct case when date_diff('hour',n.first_approval_time,r1.joined_time) between (24*8) and (24*15) then r1.user1_id end) as jo14
                         from rcmd_partition r1
                         join user_info n on n.user_id = r1.user2_id
                         group by 1) r2 on r1.user1_id = r2.user2_id
