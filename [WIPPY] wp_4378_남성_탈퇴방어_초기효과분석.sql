@@ -7,12 +7,14 @@ from(
 select coalesce(date(c.server_access_time),date(d.server_access_time)) as date_ymd_kst, v.user_id, json_extract_scalar(v.extra, '$.reward_type') as user_type
         , case when c.server_access_time is not null then 'continue' when d.server_access_time is not null then 'delete' end as response
         ,c.server_access_time as continue_server_access_time
-        ,d.server_access_time as delete_server_access_time
+        ,case when date_diff('minute',c.server_access_time,d.server_access_time)>0 then d.server_access_time end as delete_server_access_time
         ,r.server_access_time as last_server_access_time
-        , least(date_diff('hour',coalesce(c.server_access_time,d.server_access_time),coalesce(d.server_access_time,cast('2030-12-29 8:06:17' as timestamp))),1000) as retention_max
+        , least(date_diff('hour',coalesce(c.server_access_time,d.server_access_time),coalesce((case when date_diff('minute',c.server_access_time,d.server_access_time)>0 then d.server_access_time end),cast('2030-12-29 8:06:17' as timestamp))),1000) as retention_max
         , j.registered_time as jelly_purchase_time
         , date_diff('hour',coalesce(c.server_access_time,d.server_access_time),j.registered_time) as purchased_hour_after_continue
         , price as purchased_amount
+        , row_number() over (partition by v.user_id order by j.registered_time) as purchase_order
+        , ju.quantity as refund_quantity
 from(select * from (SELECT user_id, date_ymd_kst, navigations, event_type, extra
                     ,row_number() over (partition by user_id order by server_access_time) as rn
                     FROM ubl_part
@@ -54,7 +56,13 @@ left join (select * from(
     ) 
 --                     where rn=1
     ) j on j.user_id = v.user_id and date_diff('second',c.server_access_time,j.registered_time) > 0
+left join (select user_id, quantity, item_id, registered_time
+            from wippy_bronze.billings_jellyuselog
+            where date_ymd_kst >= '2025-12-17'
+            and item_id = 2386
+            and quantity>4) ju on c.user_id = ju.user_id and date_diff('minute',c.server_access_time,ju.registered_time) = 0
 -- where c.server_access_time is null
 order by 3,4
 )
+
 where response is not null
