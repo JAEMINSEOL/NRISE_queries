@@ -1,6 +1,14 @@
 with ubl_part as (SELECT user_id,date_ymd_kst,navigations,server_access_time,event_type,event_props, extra
     FROM wippy_bronze.wippy_ubl
-    where date_ymd_kst >= '2025-12-18')
+    where date_ymd_kst >= '2025-12-17')
+,
+    user_billing as (select b.user_id, registered_time, j.quantity, price
+                     from (select user_id, registered_time, price, jelly_use_log_id
+                           from wippy_bronze.billing_log
+                           where registered_month >= '2025-12') b
+                              join (select user_id, quantity, id
+                                    from wippy_bronze.billings_jellyuselog
+                                    where date_ymd_kst >= '2025-12-17') j on j.id = b.jelly_use_log_id)
 
 select *
 from(
@@ -12,9 +20,11 @@ select coalesce(date(c.server_access_time),date(d.server_access_time)) as date_y
         , least(date_diff('hour',coalesce(c.server_access_time,d.server_access_time),coalesce((case when date_diff('minute',c.server_access_time,d.server_access_time)>0 then d.server_access_time end),cast('2030-12-29 8:06:17' as timestamp))),1000) as retention_max
         , j.registered_time as jelly_purchase_time
         , date_diff('hour',coalesce(c.server_access_time,d.server_access_time),j.registered_time) as purchased_hour_after_continue
-        , price as purchased_amount
+        , j.price as purchased_amount
         , row_number() over (partition by v.user_id order by j.registered_time) as purchase_order
-        , ju.quantity as refund_quantity
+        , coalesce(ju.quantity, js.quantity) as refund_quantity
+        , js.price as last_purchased_amount
+        , row_number() over (partition by v.user_id order by js.registered_time desc) as rn
 from(select * from (SELECT user_id, date_ymd_kst, navigations, event_type, extra
                     ,row_number() over (partition by user_id order by server_access_time) as rn
                     FROM ubl_part
@@ -53,16 +63,20 @@ left join (select * from(
             , row_number() over (partition by user_id order by registered_time desc) as rn
     from wippy_bronze.billing_log
     where registered_month >= '2025-12'
-    ) 
+    )
 --                     where rn=1
     ) j on j.user_id = v.user_id and date_diff('second',c.server_access_time,j.registered_time) > 0
 left join (select user_id, quantity, item_id, registered_time
             from wippy_bronze.billings_jellyuselog
             where date_ymd_kst >= '2025-12-17'
             and item_id = 2386
-            and quantity>4) ju on c.user_id = ju.user_id and date_diff('minute',c.server_access_time,ju.registered_time) = 0
+            and quantity>4) ju on c.user_id = ju.user_id and date_diff('minute',c.server_access_time,ju.registered_time) <= 1 and date_diff('minute',c.server_access_time,ju.registered_time) >=0
+left join (select *
+           from user_billing
+           where quantity>4) js on c.user_id = js.user_id and date_diff('minute',c.server_access_time,js.registered_time) <= 0
 -- where c.server_access_time is null
 order by 3,4
 )
 
 where response is not null
+and rn=1
